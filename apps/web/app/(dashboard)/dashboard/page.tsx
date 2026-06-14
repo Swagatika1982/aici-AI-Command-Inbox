@@ -1,7 +1,11 @@
+"use client";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Badge } from "../../../components/ui/badge";
 import { Checkbox } from "../../../components/ui/checkbox";
+import { trpc } from "../../../trpc/client";
+
+
 
 import {
   Mail,
@@ -13,21 +17,34 @@ import {
 } from "lucide-react";
 
 
-const emails = [
-  { from: "Montessori Center", subject: "Parent Teacher Meeting Tomorrow", tag: "School", time: "2h ago" },
-  { from: "Sarah Johnson", subject: "Project Update & Next Steps", tag: "Work", time: "5h ago" },
-  { from: "ICICI Bank", subject: "Your Credit Card Bill is Ready", tag: "Finance", time: "Yesterday" },
-  { from: "Law Office of Sharma", subject: "Hearing Date Confirmed", tag: "Legal", time: "Yesterday" },
-];
-
-const tasks = [
-  { title: "Reply to Montessori Center", priority: "High", due: "Today" },
-  { title: "Submit project proposal", priority: "Medium", due: "Today" },
-  { title: "Pay electricity bill", priority: "High", due: "Tomorrow" },
-  { title: "Follow up with Attorney", priority: "Medium", due: "Jun 16" },
-];
-
+// const emails = [
+//   { from: "Montessori Center", subject: "Parent Teacher Meeting Tomorrow", tag: "School", time: "2h ago" },
+//   { from: "Sarah Johnson", subject: "Project Update & Next Steps", tag: "Work", time: "5h ago" },
+//   { from: "ICICI Bank", subject: "Your Credit Card Bill is Ready", tag: "Finance", time: "Yesterday" },
+//   { from: "Law Office of Sharma", subject: "Hearing Date Confirmed", tag: "Legal", time: "Yesterday" },
+// ];
 export default function DashboardPage() {
+
+
+  const { data: emails = [], isLoading, error } = trpc.gmail.getInbox.useQuery(undefined, {
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+
+  // console.log("gmail data", data);
+  // console.log("gmail error", error);
+
+  const { data: events = [], isLoading: eventsLoading } =
+    trpc.calendar.getUpcoming.useQuery();
+
+  const tasks = [
+    { title: "Reply to Montessori Center", priority: "High", due: "Today" },
+    { title: "Submit project proposal", priority: "Medium", due: "Today" },
+    { title: "Pay electricity bill", priority: "High", due: "Tomorrow" },
+    { title: "Follow up with Attorney", priority: "Medium", due: "Jun 16" },
+  ];
+
+
   return (
     <div className="space-y-8">
 
@@ -47,7 +64,7 @@ export default function DashboardPage() {
           <p className="mt-2 text-slate-400">
             Here&apos;s what needs your attention today.
           </p>
-        </div>        
+        </div>
       </div>
 
       {/* -------------------------- Morning Brief Section------- */}
@@ -144,11 +161,11 @@ export default function DashboardPage() {
           <CardContent className="space-y-4">
             {emails.map((email) => {
               const avatarClass =
-                email.tag === "School"
+                email.priority === "School"
                   ? "bg-blue-500/20 text-blue-300"
-                  : email.tag === "Work"
+                  : email.priority === "Work"
                     ? "bg-green-500/20 text-green-300"
-                    : email.tag === "Finance"
+                    : email.priority === "Finance"
                       ? "bg-yellow-500/20 text-yellow-200"
                       : "bg-purple-500/20 text-purple-300";
 
@@ -164,12 +181,12 @@ export default function DashboardPage() {
                     <div className="flex-1">
                       <div className="flex justify-between">
                         <p className="font-semibold">{email.from}</p>
-                        <span className="text-xs text-slate-400">{email.time}</span>
+                        <span className="text-xs text-slate-400">{email.receivedAt}</span>
                       </div>
 
                       <p className="text-sm text-slate-300">{email.subject}</p>
 
-                      <Badge className="mt-2 bg-blue-600">{email.tag}</Badge>
+                      <Badge className="mt-2 bg-blue-600">{email.priority}</Badge>
                     </div>
                   </div>
                 </div>
@@ -186,29 +203,17 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
-            {[
-              {
-                title: "Team Standup",
-                time: "11:00 AM",
-              },
-              {
-                title: "Design Review",
-                time: "1:00 PM",
-              },
-              {
-                title: "Dentist Appointment",
-                time: "3:30 PM",
-              },
-              {
-                title: "Pick up Anaya",
-                time: "5:00 PM",
-              },
-            ].map((item) => (
-              <div key={item.time} className="flex gap-4">
+            {events.map((item) => (
+              <div key={item.id} className="flex gap-4">
                 <div className="mt-1 h-3 w-3 rounded-full bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.8)]" />
                 <div>
                   <p className="font-medium text-white">{item.title}</p>
-                  <p className="text-xs text-slate-500">{item.time}</p>
+                  <p className="text-xs text-slate-500">
+                    {new Date(item.startTime).toLocaleTimeString([], {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </p>
                 </div>
               </div>
             ))}
