@@ -1,3 +1,5 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
 import {
@@ -6,22 +8,66 @@ import {
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
-
-const priorityData = [
-  { label: "High", value: "42%", color: "bg-red-400" },
-  { label: "Medium", value: "35%", color: "bg-yellow-400" },
-  { label: "Low", value: "23%", color: "bg-green-400" },
-];
-
-const weeklyActivity = [
-  { day: "Mon", value: "70%" },
-  { day: "Tue", value: "55%" },
-  { day: "Wed", value: "80%" },
-  { day: "Thu", value: "45%" },
-  { day: "Fri", value: "65%" },
-];
+import { trpc } from "../../../trpc/client";
 
 export default function AnalyticsPage() {
+  const { data: emails = [], isLoading } = trpc.gmail.getInbox.useQuery();
+
+  const totalEmails = emails.length;
+  const highCount = emails.filter((email) => email.priority === "high").length;
+  const mediumCount = emails.filter((email) => email.priority === "medium").length;
+  const lowCount = emails.filter((email) => email.priority === "low").length;
+
+  const commands = emails.filter((email) => email.suggestedCommand !== "Review");
+  const commandCount = commands.length;
+
+  const createEventCount = emails.filter(
+    (email) => email.suggestedCommand === "Create Event",
+  ).length;
+
+  const replyCount = emails.filter(
+    (email) => email.suggestedCommand === "Reply",
+  ).length;
+
+  const trackPaymentCount = emails.filter(
+    (email) => email.suggestedCommand === "Track Payment",
+  ).length;
+
+  const archiveCount = emails.filter(
+    (email) => email.suggestedCommand === "Archive",
+  ).length;
+
+  const actionRate =
+    totalEmails > 0 ? Math.round((commandCount / totalEmails) * 100) : 0;
+
+  const priorityData = [
+    {
+      label: "High",
+      count: highCount,
+      value: totalEmails > 0 ? `${Math.round((highCount / totalEmails) * 100)}%` : "0%",
+      color: "bg-red-400",
+    },
+    {
+      label: "Medium",
+      count: mediumCount,
+      value: totalEmails > 0 ? `${Math.round((mediumCount / totalEmails) * 100)}%` : "0%",
+      color: "bg-yellow-400",
+    },
+    {
+      label: "Low",
+      count: lowCount,
+      value: totalEmails > 0 ? `${Math.round((lowCount / totalEmails) * 100)}%` : "0%",
+      color: "bg-purple-400",
+    },
+  ];
+
+  const commandBreakdown = [
+    { label: "Create Event", count: createEventCount },
+    { label: "Reply", count: replyCount },
+    { label: "Track Payment", count: trackPaymentCount },
+    { label: "Archive", count: archiveCount },
+  ];
+
   return (
     <div className="space-y-8">
       <div>
@@ -32,7 +78,7 @@ export default function AnalyticsPage() {
           Productivity Insights
         </h1>
         <p className="mt-2 text-slate-400">
-          Track inbox load, command completion, and priority trends.
+          Real-time insights from Gmail priority scoring and generated commands.
         </p>
       </div>
 
@@ -44,17 +90,21 @@ export default function AnalyticsPage() {
               Inbox Processed
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-4xl font-bold">48</CardContent>
+          <CardContent className="text-4xl font-bold">
+            {isLoading ? "..." : totalEmails}
+          </CardContent>
         </Card>
 
         <Card className="border-slate-800 bg-slate-900 text-white">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
               <CheckCircle2 className="h-5 w-5 text-green-400" />
-              Completed
+              Commands
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-4xl font-bold">31</CardContent>
+          <CardContent className="text-4xl font-bold">
+            {isLoading ? "..." : commandCount}
+          </CardContent>
         </Card>
 
         <Card className="border-slate-800 bg-slate-900 text-white">
@@ -64,44 +114,53 @@ export default function AnalyticsPage() {
               High Priority
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-4xl font-bold">12</CardContent>
+          <CardContent className="text-4xl font-bold">
+            {isLoading ? "..." : highCount}
+          </CardContent>
         </Card>
 
         <Card className="border-slate-800 bg-slate-900 text-white">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
               <TrendingUp className="h-5 w-5 text-purple-400" />
-              Completion Rate
+              Action Rate
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-4xl font-bold">78%</CardContent>
+          <CardContent className="text-4xl font-bold">
+            {isLoading ? "..." : `${actionRate}%`}
+          </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="border-slate-800 bg-slate-900 text-white">
           <CardHeader>
-            <CardTitle>Weekly Command Activity</CardTitle>
+            <CardTitle>Command Breakdown</CardTitle>
             <p className="text-sm text-slate-400">
-              Commands processed across the week.
+              Suggested commands generated from your inbox.
             </p>
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {weeklyActivity.map((item) => (
-              <div key={item.day}>
-                <div className="mb-2 flex justify-between text-sm">
-                  <span className="text-slate-300">{item.day}</span>
-                  <span className="text-slate-500">{item.value}</span>
+            {commandBreakdown.map((item) => {
+              const width =
+                commandCount > 0 ? `${Math.round((item.count / commandCount) * 100)}%` : "0%";
+
+              return (
+                <div key={item.label}>
+                  <div className="mb-2 flex justify-between text-sm">
+                    <span className="text-slate-300">{item.label}</span>
+                    <span className="text-slate-500">{item.count}</span>
+                  </div>
+                  <div className="h-3 rounded-full bg-slate-800">
+                    <div
+                      className="h-3 rounded-full bg-cyan-400"
+                      style={{ width }}
+                    />
+                  </div>
                 </div>
-                <div className="h-3 rounded-full bg-slate-800">
-                  <div
-                    className="h-3 rounded-full bg-cyan-400"
-                    style={{ width: item.value }}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
 
@@ -109,7 +168,7 @@ export default function AnalyticsPage() {
           <CardHeader>
             <CardTitle>Priority Distribution</CardTitle>
             <p className="text-sm text-slate-400">
-              AI-classified task urgency.
+              AI-classified urgency across real Gmail messages.
             </p>
           </CardHeader>
 
@@ -122,7 +181,7 @@ export default function AnalyticsPage() {
                 </div>
 
                 <Badge className="bg-slate-800 text-slate-300">
-                  {item.value}
+                  {item.count} / {item.value}
                 </Badge>
               </div>
             ))}

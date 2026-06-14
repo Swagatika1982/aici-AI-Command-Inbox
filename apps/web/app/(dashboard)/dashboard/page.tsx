@@ -17,30 +17,13 @@ import {
 } from "lucide-react";
 
 
-// const emails = [
-//   { from: "Montessori Center", subject: "Parent Teacher Meeting Tomorrow", tag: "School", time: "2h ago" },
-//   { from: "Sarah Johnson", subject: "Project Update & Next Steps", tag: "Work", time: "5h ago" },
-//   { from: "ICICI Bank", subject: "Your Credit Card Bill is Ready", tag: "Finance", time: "Yesterday" },
-//   { from: "Law Office of Sharma", subject: "Hearing Date Confirmed", tag: "Legal", time: "Yesterday" },
-// ];
 export default function DashboardPage() {
 
 
   const { data: emails = [] } = trpc.gmail.getInbox.useQuery();
 
-  // console.log("gmail data", data);
-  // console.log("gmail error", error);
-
   const { data: events = [], isLoading: eventsLoading } =
     trpc.calendar.getUpcoming.useQuery();
-
-  const tasks = [
-    { title: "Reply to Montessori Center", priority: "High", due: "Today" },
-    { title: "Submit project proposal", priority: "Medium", due: "Today" },
-    { title: "Pay electricity bill", priority: "High", due: "Tomorrow" },
-    { title: "Follow up with Attorney", priority: "Medium", due: "Jun 16" },
-  ];
-
 
   return (
     <div className="space-y-8">
@@ -158,32 +141,60 @@ export default function DashboardPage() {
           <CardContent className="space-y-4">
             {emails.map((email) => {
               const avatarClass =
-                email.priority === "School"
-                  ? "bg-blue-500/20 text-blue-300"
-                  : email.priority === "Work"
-                    ? "bg-green-500/20 text-green-300"
-                    : email.priority === "Finance"
-                      ? "bg-yellow-500/20 text-yellow-200"
-                      : "bg-purple-500/20 text-purple-300";
+                email.priority === "high"
+                  ? "bg-red-500/20 text-red-300"
+                  : email.priority === "medium"
+                    ? "bg-yellow-500/20 text-yellow-300"
+                    : "bg-purple-500/20 text-purple-300";
 
               return (
-                <div key={email.subject} className="border-b border-slate-800 pb-4">
+                <div
+                  key={email.id}
+                  className="overflow-hidden border-b border-slate-800 pb-4"
+                >
                   <div className="flex gap-3">
                     <div
-                      className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${avatarClass}`}
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${avatarClass}`}
                     >
                       {email.from.replace(/"/g, "").trim().charAt(0)}
                     </div>
 
-                    <div className="flex-1">
-                      <div className="flex justify-between">
-                        <p className="font-semibold">{email.from}</p>
-                        <span className="text-xs text-slate-400">{email.receivedAt}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="truncate font-semibold">{email.from}</p>
+
+                        <span className="shrink-0 text-xs text-slate-400">
+                          {new Date(email.receivedAt).toLocaleDateString()}
+                        </span>
                       </div>
 
-                      <p className="text-sm text-slate-300">{email.subject}</p>
+                      <p className="mt-1 truncate text-sm text-slate-300">
+                        {email.subject}
+                      </p>
 
-                      <Badge className="mt-2 bg-blue-600">{email.priority}</Badge>
+                      <p className="mt-1 line-clamp-2 text-xs text-slate-500">
+                        {email.summary}
+                      </p>
+
+                      <div className="mt-2">
+                        <span
+                          className={`rounded px-2 py-1 text-xs font-medium ${email.priority === "high"
+                            ? "bg-red-500/10 text-red-400"
+                            : email.priority === "medium"
+                              ? "bg-yellow-500/10 text-yellow-400"
+                              : "bg-purple-500/10 text-purple-400"
+                            }`}
+                        >
+                          {email.priority.toUpperCase()} • {email.priorityScore}
+                        </span>
+                      </div>
+
+                      <div className="mt-2">
+                        <Badge className="bg-cyan-500/10 text-cyan-300 border-cyan-500/20">
+                          ⚡ {email.suggestedCommand}
+                        </Badge>
+                      </div>
+
                     </div>
                   </div>
                 </div>
@@ -225,23 +236,42 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {tasks.map((task) => (
-              <div key={task.title} className="flex items-start gap-3 border-b border-slate-800 pb-3">
-                <Checkbox />
-                <div className="flex-1">
-                  <p className="font-medium">{task.title}</p>
-                  <p className="text-sm text-slate-400">{task.due}</p>
-                </div>
-                <span
-                  className={`rounded-full px-2 py-1 text-xs font-semibold ${task.priority === "High"
-                    ? "bg-red-500/10 text-red-400"
-                    : "bg-yellow-500/10 text-yellow-400"
-                    }`}
+            {emails
+              .filter(
+                (email) =>
+                  email.suggestedCommand !== "Review" &&
+                  email.priority !== "low"
+              )
+              .slice(0, 5)
+              .map((email) => (
+                <div
+                  key={email.id}
+                  className="flex items-start gap-3 border-b border-slate-800 pb-3"
                 >
-                  {task.priority}
-                </span>
-              </div>
-            ))}
+                  <Checkbox />
+
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate font-medium">
+                      {email.subject}
+                    </p>
+
+                    <p className="text-sm text-slate-400">
+                      ⚡ {email.suggestedCommand}
+                    </p>
+                  </div>
+
+                  <span
+                    className={`rounded-full px-2 py-1 text-xs font-semibold ${email.priority === "high"
+                      ? "bg-red-500/10 text-red-400"
+                      : email.priority === "medium"
+                        ? "bg-yellow-500/10 text-yellow-400"
+                        : "bg-purple-500/10 text-purple-400"
+                      }`}
+                  >
+                    {email.priority.toUpperCase()}
+                  </span>
+                </div>
+              ))}
           </CardContent>
         </Card>
       </div>

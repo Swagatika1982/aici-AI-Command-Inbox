@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { publicProcedure, router } from "../../trpc";
 import { corsair } from "../../../../../apps/api/corsair";
+import { calculatePriority } from "../../../../../apps/api/lib/priority";
+import { getSuggestedCommand } from "../../../../../apps/api/lib/suggestions";
 
 const mockEmails = [
   {
@@ -23,24 +25,46 @@ export const gmailRouter = router({
     const listResult = await tenant.gmail.api.messages.list();
 
     const messages = listResult.messages ?? [];
+    if (messages.length === 0) {
+      return [];
+    }
+    const summary =
+      messages.snippet && messages.snippet.length > 120
+        ? `${messages.snippet.slice(0, 120)}...`
+        : messages.snippet || "No summary available";
 
     const detailedEmails = await Promise.all(
       messages.slice(0, 10).map(async (message: any) => {
         const detail = await tenant.gmail.api.messages.get({
           id: message.id,
         });
+
+        const from =
+          detail.payload?.headers?.find((h: any) => h.name === "From")?.value ??
+          "Unknown sender";
+
+        const subject =
+          detail.payload?.headers?.find((h: any) => h.name === "Subject")?.value ??
+          "No subject";
+
+        const priorityData = calculatePriority({
+          from,
+          subject,
+          snippet: summary,
+        });
+
         return {
           id: message.id,
-          from:
-            detail.payload?.headers?.find((h: any) => h.name === "From")?.value ??
-            "Unknown sender",
-          subject:
-            detail.payload?.headers?.find((h: any) => h.name === "Subject")?.value ??
-            "No subject",
-          snippet: detail.snippet ?? "",
-          priority: "Medium",
+          from,
+          subject,
+          snippet: summary,
+
+          priority: priorityData.priority,
+          priorityScore: priorityData.score,
+          priorityReason: priorityData.reason,
+
           summary: detail.snippet ?? "No summary available",
-          suggestedCommand: "Review this email",
+          suggestedCommand: getSuggestedCommand(subject, summary, from),
           receivedAt: detail.internalDate
             ? new Date(Number(detail.internalDate)).toISOString()
             : new Date().toISOString(),
