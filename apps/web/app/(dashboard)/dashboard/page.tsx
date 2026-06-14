@@ -26,10 +26,7 @@ import {
 export default function DashboardPage() {
 
 
-  const { data: emails = [], isLoading, error } = trpc.gmail.getInbox.useQuery(undefined, {
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-  });
+  const { data: emails = [] } = trpc.gmail.getInbox.useQuery();
 
   // console.log("gmail data", data);
   // console.log("gmail error", error);
@@ -175,7 +172,7 @@ export default function DashboardPage() {
                     <div
                       className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${avatarClass}`}
                     >
-                      {email.from.charAt(0)}
+                      {email.from.replace(/"/g, "").trim().charAt(0)}
                     </div>
 
                     <div className="flex-1">
